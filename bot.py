@@ -1,5 +1,12 @@
 import os
 import logging
+from dotenv import load_dotenv
+load_dotenv()
+
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+CHANNEL_ID = os.getenv("CHANNEL_ID")
+MANAGER_ID = int(os.getenv("MANAGER_ID"))
+
 from telegram import (
     Update,
     InlineKeyboardButton,
@@ -178,8 +185,6 @@ async def buy_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "✍️ Напиши свой вопрос по персональной программе. Мы ответим как можно быстрее.",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
-
-
 
 # =========================
 # 🔹 Вход в закрытый канал

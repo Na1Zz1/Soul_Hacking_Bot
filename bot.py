@@ -23,17 +23,6 @@ from telegram.ext import (
 )
 
 # =========================
-# 🔹 Настройки
-# =========================
-BOT_TOKEN = "8360997156:AAFSDx7EnPl-ikmgaIGMRqGk-eA-OnxeKLY"
-CHANNEL_ID = "@soulhackclub"
-MANAGER_ID = 8102469827
-PDF_FILES = {
-    "massa": "massa.pdf",
-    "weightloss": "weightloss.pdf",
-}
-
-# =========================
 # 🔹 Логирование
 # =========================
 logging.basicConfig(level=logging.INFO)

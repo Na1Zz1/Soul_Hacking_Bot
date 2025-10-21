@@ -22,6 +22,11 @@ from telegram.ext import (
     filters
 )
 
+PDF_FILES = {
+    "mass": "massa.pdf",
+    "weightloss": "weightloss.pdf"
+}
+
 # =========================
 # 🔹 Логирование
 # =========================

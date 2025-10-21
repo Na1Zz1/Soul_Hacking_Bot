@@ -107,30 +107,38 @@ async def check_subscription(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user_id = query.from_user.id
     goal = context.user_data.get("goal")
 
+    caption = "✅ Твой план тренировок готов! 💪"  # всегда определена
+
     try:
         member = await context.bot.get_chat_member(CHANNEL_ID, user_id)
         if member.status in ["member", "administrator", "creator"]:
             file_path = PDF_FILES.get(goal)
             if file_path and os.path.exists(file_path):
-
+                # Сохраняем сообщение с кнопками для удаления
                 buttons_message = query.message
 
+                # Отправляем PDF с caption
                 with open(file_path, "rb") as f:
-                    await query.message.reply_document(InputFile(f, filename=os.path.basename(file_path)))
+                    await query.message.reply_document(InputFile(f, filename=os.path.basename(file_path)), caption=caption)
 
+                # Удаляем старое сообщение с кнопками
                 try:
                     await buttons_message.delete()
                 except:
                     pass
 
-                await query.message.reply_text("✅ Твой план тренировок готов! Ты можешь найти больше информации здесь⬇️\n Выбери действие:",
-                reply_markup=main_menu_keyboard())
+                # Отправляем меню после выдачи PDF
+                await query.message.reply_text(
+                    "Выбери действие:",
+                    reply_markup=main_menu_keyboard()
+                )
             else:
-                await query.message.reply_document(InputFile(file_path), caption=caption)
+                # Если файл не найден
+                await query.message.reply_text("❌ Файл для этой цели не найден.", reply_markup=main_menu_keyboard())
         else:
-            await query.message.reply_text("❌ Подпишись на канал, чтобы получить план.",reply_markup=main_menu_keyboard())
+            await query.message.reply_text("❌ Подпишись на канал, чтобы получить план.", reply_markup=main_menu_keyboard())
     except Exception as e:
-        await query.message.reply_text(f"⚠️ Ошибка при проверке подписки: {e}",reply_markup=main_menu_keyboard())
+        await query.message.reply_text(f"⚠️ Ошибка при проверке подписки: {e}", reply_markup=main_menu_keyboard())
 
 # =========================
 # 🔹 Персональная программа

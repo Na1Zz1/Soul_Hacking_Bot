@@ -107,39 +107,70 @@ async def check_subscription(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user_id = query.from_user.id
     goal = context.user_data.get("goal")
 
-    caption = "✅ Твой план тренировок готов! 💪"  # всегда определена
+    caption = "💪 Вот твой пробный план тренировок"
+
+    # Логируем основную информацию в консоль (и в лог-файл, если есть)
+    logging.info("check_subscription called by user_id=%s, goal=%s", user_id, goal)
 
     try:
         member = await context.bot.get_chat_member(CHANNEL_ID, user_id)
-        if member.status in ["member", "administrator", "creator"]:
-            file_path = PDF_FILES.get(goal)
-            if file_path and os.path.exists(file_path):
-                # Сохраняем сообщение с кнопками для удаления
-                buttons_message = query.message
-
-                # Отправляем PDF с caption
-                with open(file_path, "rb") as f:
-                    await query.message.reply_document(InputFile(f, filename=os.path.basename(file_path)), caption=caption)
-
-                # Удаляем старое сообщение с кнопками
-                try:
-                    await buttons_message.delete()
-                except:
-                    pass
-
-                # Отправляем меню после выдачи PDF
-                await query.message.reply_text(
-                    "Выбери действие:",
-                    reply_markup=main_menu_keyboard()
-                )
-            else:
-                # Если файл не найден
-                await query.message.reply_text("❌ Файл для этой цели не найден.", reply_markup=main_menu_keyboard())
-        else:
+        if member.status not in ["member", "administrator", "creator"]:
             await query.message.reply_text("❌ Подпишись на канал, чтобы получить план.", reply_markup=main_menu_keyboard())
-    except Exception as e:
-        await query.message.reply_text(f"⚠️ Ошибка при проверке подписки: {e}", reply_markup=main_menu_keyboard())
+            return
 
+        # Получаем путь к файлу
+        file_path = None
+        if isinstance(goal, str):
+            # допускаем разные ключи: "massa", "mass", "weightloss", "weight_loss"
+            file_path = PDF_FILES.get(goal)
+        logging.info("Resolved file_path=%s for goal=%s", file_path, goal)
+
+        # Доп. защита: если file_path пустой — пробуем нормализовать
+        if not file_path and goal:
+            normalized = goal.lower().replace(" ", "").replace("-", "").replace("_", "")
+            for k, v in PDF_FILES.items():
+                if k.lower().replace(" ", "") == normalized:
+                    file_path = v
+                    logging.info("Normalized goal '%s' -> key '%s', file '%s'", goal, k, v)
+                    break
+
+        if not file_path:
+            # Сообщаем пользователю и менеджеру
+            await query.message.reply_text("❌ Файл для этой цели не найден. Свяжись с администратором.", reply_markup=main_menu_keyboard())
+            await context.bot.send_message(MANAGER_ID, f"❗ PDF не найден для user={user_id}, goal={goal}. Проверь PDF_FILES и наличие файлов на сервере.")
+            return
+
+        # Проверяем наличие файла на диске
+        if not os.path.exists(file_path):
+            await query.message.reply_text("❌ Файл на сервере не найден. Администратор уведомлён.", reply_markup=main_menu_keyboard())
+            await context.bot.send_message(MANAGER_ID, f"❗ Файл {file_path} не существует на сервере. Путь: {os.path.abspath(file_path)}")
+            logging.error("File not exists: %s (abs: %s)", file_path, os.path.abspath(file_path))
+            return
+
+        # Сохраняем сообщение с кнопками, чтобы удалить после успешной отправки
+        buttons_message = query.message
+
+        # Отправляем PDF с подписью
+        with open(file_path, "rb") as f:
+            await query.message.reply_document(InputFile(f, filename=os.path.basename(file_path)), caption=caption)
+
+        # Удаляем сообщение с кнопками (если возможно)
+        try:
+            await buttons_message.delete()
+        except Exception:
+            logging.warning("Не удалось удалить сообщение с кнопками (возможно нет прав).", exc_info=True)
+
+        # Главное меню после отправки
+        await query.message.reply_text("✅ Твой план готов! Выбери действие:", reply_markup=main_menu_keyboard())
+
+    except Exception as e:
+        logging.exception("Ошибка в check_subscription")
+        await query.message.reply_text(f"⚠️ Ошибка при проверке подписки: {e}", reply_markup=main_menu_keyboard())
+        # Уведомляем менеджера
+        try:
+            await context.bot.send_message(MANAGER_ID, f"⚠️ Ошибка в check_subscription: {e}\nuser={user_id}, goal={goal}")
+        except:
+            pass
 # =========================
 # 🔹 Персональная программа
 # =========================
